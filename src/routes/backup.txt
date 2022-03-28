@@ -1,0 +1,112 @@
+//---------------------------------------------------------------------------------------------
+//--------------------------------Navegador de CAJON anidado-----------------------------------
+//---------------------------------------------------------------------------------------------
+//Descripcion:  Navegador de Cajon anidado. Navegador hijo, contiene las pantallas de
+//              navegacion del usuario. Estas conforman el HOME, y es lo que ve el usuario
+//              posterior a su logueo. Tenga encuenta que esta declaracion corresponde a un menu
+//              de cajon animado, por lo cual cada pantalla declarada se realiza dentro de un
+//              navegador de pila interno, por lo cual poseen un nivel de anidamiento (2).
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+import React from 'react';
+import { Dimensions, ImageBackground, StyleSheet, StatusBar, View } from 'react-native';
+//-----------------------------------------Animated--------------------------------------------
+import Animated from 'react-native-reanimated';
+const { interpolate, Extrapolate } = Animated;//Metodos de animacion
+//------------------------------------------Estilos--------------------------------------------
+import { HomeNavigator } from '../styles/styles';
+//-------------------------------------Recursos Graficos---------------------------------------
+import Fondo from '../assets/Fondo_4.jpg';
+//---------------------------------------Menu >> Cajon-----------------------------------------
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import MyCustomDrawer from '../components/MyCustomDrawer';//Componente de Taps de Menu
+//---------------------------------------Pantallas de App--------------------------------------
+import { createStackNavigator } from '@react-navigation/stack';
+const Stack = createStackNavigator();
+//----------------------Pantallas de navegador de pestañas (Anidamiento 2)---------------------
+import HelpScreen from '../screens/HelpScreen';
+import Achievements from '../screens/AchievementsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import HomeScreen from '../screens/HomeScreen';
+//--------------------------------Declaracion >> Constantes Globales---------------------------
+const { width, height } = Dimensions.get('window');
+const HOME_SCREENS = [
+    {
+        id: 1,
+        name: 'Profile',
+        screenComponent: ProfileScreen
+    },
+    {
+        id: 2,
+        name: 'Home',
+        screenComponent: HomeScreen
+    },
+];//Tabla de pantallas de navegador
+//--------------------------------Declaracion >> Variables Globales----------------------------
+let screenStyle = null;//Objeto de estilo de screen de navegador
+//----------------------------------Declaracion de objeto de cajon-----------------------------
+const Drawer = createDrawerNavigator();
+const Home = (props) => {
+    //-----------------------------------------------------------------------------------------
+    //-------------------------------Declaracion >> Componentes--------------------------------
+    //-----------------------------------------------------------------------------------------
+    //--------------------------------Componente >> MyCustomScreens----------------------------
+    //Descripcion : Renderiza las pantallas correspondientes a cada tap del menu de navegacion
+    //              de cajon implementado.
+    const MyCustomScreens = (props) => {
+        const { item, style } = props;
+        return (
+            <Animated.View style={[HomeNavigator.animatedView, style]}>
+                <Stack.Navigator>
+                    <Stack.Screen
+                        name={item.name}
+                        component={item.screenComponent}
+                        options={{ headerShown: false }} />
+                </Stack.Navigator>
+            </Animated.View>
+        )
+    };
+    //-----------------------------------------------------------------------------------------
+    //----------------------------------Instancia >> Navegador---------------------------------
+    //-----------------------------------------------------------------------------------------
+    return (
+        <ImageBackground
+            style={HomeNavigator.backgroundImage}
+            source={Fondo}
+            resizeMode='cover'>
+            <StatusBar translucent barStyle='dark-content' backgroundColor='transparent' />
+            <View style={HomeNavigator.transparentView}>
+                <Drawer.Navigator
+                    drawerType='back'
+                    overlayColor='transparent'
+                    sceneContainerStyle={HomeNavigator.sceneContainerStyle}
+                    drawerStyle={HomeNavigator.drawerStyle}
+                    drawerContent={props => {
+                        const scale = interpolate(props.progress, {
+                            inputRange: [0, 1],
+                            outputRange: [1, 0.85],
+                            extrapolate: Extrapolate.CLAMP
+                        });
+                        const borderRadius = interpolate(props.progress, {
+                            inputRange: [0, 1],
+                            outputRange: [0, 20],
+                            extrapolate: Extrapolate.CLAMP
+                        });
+                        //Objeto de estilo >> Animaciones de Screen
+                        screenStyle = { transform: [{ scaleY: scale }], borderRadius };
+                        return <MyCustomDrawer {...props} />;
+                    }}>
+                    {HOME_SCREENS.map(screen => {
+                        return (
+                            <Drawer.Screen key={screen.id} name={screen.name}>
+                                {props => <MyCustomScreens item={screen} {...props} style={{ ...screenStyle }} />}
+                            </Drawer.Screen>
+                        )
+                    })}
+                </Drawer.Navigator>
+            </View>
+        </ImageBackground>
+    );
+}
+export default Home;

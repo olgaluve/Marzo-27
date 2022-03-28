@@ -1,0 +1,963 @@
+//---------------------------------------------------------------------------------------------
+//-----------------------------------Pantalla de Logueo----------------------------------------
+//---------------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+//-------------------------Componentes y dependencias React-Native-----------------------------
+import React, { useLayoutEffect, useState, useCallback } from 'react';
+import { View, RefreshControl, ScrollView, Text, Image } from 'react-native';
+//-----------------------------------Librerias >> Adicionales----------------------------------
+import AsyncStorage from '@react-native-community/async-storage';
+import { useTranslation } from 'react-i18next';
+//----------------------------------------Componentes------------------------------------------
+import Wallpaper from '../components/Wallpaper';
+import MySpace from '../components/MySpace';
+import MyDrawMenuButton from '../components/MyDrawMenuButton';
+import MySectionScore from '../components/MySectionScore';
+//-----------------------------------------Funciones-------------------------------------------
+import { totalScore, categoryParameters, wait } from '@functions/functions';
+//------------------------------------------Servicies------------------------------------------
+import { scoreUser } from '@services/services';
+//------------------------------------------Redux----------------------------------------------
+import { connect } from 'react-redux';
+//------------------------------------------Estilos--------------------------------------------
+import { AchievementsStyles } from '@styles/styles';
+import { letter } from '@styles/letter';
+//---------------------------------------Recursos Graficos-------------------------------------
+import medallaOro from '@recursos/medallaOro.png';
+import medallaPlata from '@recursos/medallaPlata.png';
+import medallaBronce from '@recursos/medallaBronce.png';
+import medallaNada from '@recursos/medallaNada.png';
+import iconSection from '@recursos/logros-punto.png';
+//------------------------------------------Constantes-------------------------------------------
+const URL_MEDALLAS = {
+  'oro': medallaOro,
+  'plata': medallaPlata,
+  'bronce': medallaBronce,
+  'sinPuntos': medallaNada
+};
+const ICONS_COMPANY = [
+  { id: '0', url: iconSection },
+  { id: '1', url: iconSection },
+  { id: '2', url: iconSection },
+  { id: '3', url: iconSection },
+  { id: '4', url: iconSection },
+  { id: '5', url: iconSection },
+];
+const AchievementsScreen = (props) => {
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Objeto de traduccion------------------------------
+  //---------------------------------------------------------------------------------------------
+  const { t, i18n } = useTranslation();//Objeto de traduccion
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Estados de App------------------------------------
+  //---------------------------------------------------------------------------------------------
+  const [idUser, setIdUser] = useState(0);//Estado >> Id User
+  const [refreshing, setRefreshing] = useState(false);//Estado >> Refresh de vista
+  const [score, setScore] = useState(0);//Estado >> Total de puntos
+  const [level, setLevel] = useState('');//Estado >> Level User
+  const [nextLevel, setNextLevel] = useState('');//Estado >> Next Level User
+  const [pointsMissing, SetPointsMissing] = useState(0);//Estado >> Puntos Faltantes
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Componentes App-----------------------------------
+  //---------------------------------------------------------------------------------------------
+  //---------------------------Componente >> Seccion Informativa---------------------------------
+  //Descripcion : Renderiza la informacion correspondiente a la categoria del usuario, deacuerdo
+  //              a su puntaje actual.
+  const SectionLevel = ({ title, level }) => {
+    return (
+      <View style={[AchievementsStyles.ctnSectionLevel]}>
+        <View style={[AchievementsStyles.ctnTextLevel]}>
+          <Text style={[AchievementsStyles.textMsMLevel]}>
+            {t('logros:' + title)}
+          </Text>
+        </View>
+        <View style={[AchievementsStyles.ctnTextLevel, { flex: 0.4, }]}>
+          <Text style={[AchievementsStyles.textLevel]}>
+            {t('logros:' + level)}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+  //---------------------------Componente >> Seccion Puntaje-------------------------------------
+  //Descripcion : Renderiza la informacion correspondiente al puntaje y merito del usuario.
+  /*const SectionScore = ({ score, level, pointsMissing, nextLevel }) => {
+    return (
+      <View style={[AchievementsStyles.ctnSectionScore]}>
+        <TextScore score={score} />
+        <MedalScore level={level} />
+        <TextMotivation />
+        <SectionNextCategory
+          pointsMissing={pointsMissing}
+          nextLevel={nextLevel} />
+        <SectionIcons />
+      </View>
+    );
+  }*/
+  //---------------------------Componente >> Text de puntaje-------------------------------------
+  //Descripcion : Renderiza la informacion correspondiente al puntaje del usuario.
+  const TextScore = ({ score }) => {
+    return (
+      <View style={[AchievementsStyles.ctnTextScore]}>
+        <Text style={[AchievementsStyles.textScore]}>
+          {t('logros:points')}
+          <Text style={[AchievementsStyles.textScore, { fontFamily: letter.Title }]}>
+            {'    '}{score}
+          </Text>
+        </Text>
+      </View>
+    );
+  }
+  //---------------------------Componente >> Text de puntaje-------------------------------------
+  //Descripcion : Renderiza el icono o medalla de merito de usuario de acuerdo a su puntaje actual.
+  const MedalScore = ({ level }) => {
+    return (
+      <View style={[AchievementsStyles.ctnMedal]}>
+        <Image
+          resizeMode="contain"
+          style={AchievementsStyles.medal}
+          source={URL_MEDALLAS[level]} />
+      </View>
+    );
+  }
+  //---------------------------Componente >> Text de Motivacional--------------------------------
+  //Descripcion : Renderiza el texto de incentivo de obtencion de puntos para el usuario.
+  const TextMotivation = () => {
+    return (
+      <View style={[AchievementsStyles.ctnTextMotivation]}>
+        <Text style={[AchievementsStyles.textScore]}>
+          {t('logros:msm_0')}
+        </Text>
+      </View>
+    );
+  }
+  //---------------------------Componente >> Seccion Proxima Categoria---------------------------
+  //Descripcion : Renderiza la informacion correspondiente al puntaje faltante y proxima categoria.
+  const SectionNextCategory = ({ pointsMissing, nextLevel }) => {
+    let numPoints, nextCategory;
+    numPoints = pointsMissing;
+    nextCategory = nextLevel;
+    return (
+      <View style={[AchievementsStyles.ctnNextCategory]}>
+        <Text style={[AchievementsStyles.textNextCategory]}>
+          {t('logros:nextLevel', { numPoints, nextCategory })}
+        </Text>
+      </View>
+    );
+  }
+  //---------------------------Componente >> Seccion Iconos--------------------------------------
+  //Descropcion: Renderiza el footer de la seccion de logros.
+  const SectionIcons = () => {
+    return (
+      <View style={[AchievementsStyles.ctnSectionIcons]}>
+        {
+          ICONS_COMPANY.map(data =>
+            <Image
+              key={data.id}
+              resizeMode="contain"
+              style={AchievementsStyles.iconsSection}
+              source={data.url} />
+          )
+        }
+      </View>
+    );
+  }
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Funciones App-------------------------------------
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Funcion >> Obtencion de datos------------------------------------
+  //Descripcion : Obtiene los datos relacionados al puntaje del usuario obteido por la ejecucion
+  //              de diversas acciones en la app. El resultado de la consulta es un array con el
+  //              puntaje obtenido en cada accion.
+  const getData = async ({ idUser }) => {
+    try {
+      let responseScore = await scoreUser(idUser);
+      responseScore = responseScore.data.data;
+      let total = totalScore({ arrayScore: responseScore });
+      let levelParameters = categoryParameters({ score: total });
+      setScore(total);
+      setLevel(levelParameters.labelLevel);
+      setNextLevel(levelParameters.labelNextLabel);
+      SetPointsMissing(levelParameters.missingPoints);
+      /*console.group('Consulta >> Puntos');
+      console.log('Array Puntaje : ', responseScore);
+      console.log('Puntaje : ', total);
+      console.groupEnd();
+      console.group('Consulta >> Parametros de usuario');
+      console.log(levelParameters);
+      console.groupEnd();*/
+
+    } catch (error) {
+      console.group('Error Consulta >> Puntos');
+      console.log(error);
+      console.groupEnd();
+    }
+  }
+  //-----------------------------Funcion >> Refresco de vista------------------------------------
+  //Descripcion : Permite actualizar los datos de la vista actual (Puntos de usuario), mediante
+  //              una accion de refresco.
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    wait(1000).then(() => {
+      setRefreshing(false);
+      getData({ idUser: idUser });//Consulta >> Puntos Actualizada
+    });//Reset de Refresh >> Accion Asincrona
+  }, []);
+  //---------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Effects de App------------------------------------
+  //---------------------------------------------------------------------------------------------
+  //-------------------------Effect >> Obtencion de Id de usuario--------------------------------
+  useLayoutEffect(() => {
+    /*AsyncStorage.getItem('user').then((data) => {
+      if (data) {
+        let user = JSON.parse(data);
+        setIdUser(user.id);//Set de id de usuario
+        getData({ idUser: user.id });//Consulta >> Puntos
+        //console.log('idUser : ', user.id);
+      }
+    });*/
+    let logros = props.user.data.logros;
+    let verify = logros.length > 0;
+    if (verify) {
+      setScore(logros.total);
+      setLevel(logros.labelLevel);
+      setNextLevel(logros.labelNextLabel);
+      SetPointsMissing(logros.missingPoints);
+    }
+  }, [props.user.data.logros]);
+  //---------------------------------------------------------------------------------------------
+  //----------------------------------Diseño de cuerpo de App------------------------------------
+  //---------------------------------------------------------------------------------------------
+  return (
+    <Wallpaper styleWallpaper={[{ justifyContent: 'flex-start' }]}>
+      <MyDrawMenuButton
+        title={t('logros:title')}
+        navigation={props.navigation} />
+      <View style={[AchievementsStyles.ctnAchievements]}>
+        <ScrollView
+          contentContainerStyle={[AchievementsStyles.scrollSection]}
+          showsHorizontalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh} />
+          }>
+          <MySpace ctnSpace={{ width: '100%', flex: 0.055 }} />
+          <SectionLevel
+            title={'categoria'}
+            level={level} />
+          <SectionLevel
+            title={'nextCategoria'}
+            level={nextLevel} />
+          <MySpace ctnSpace={{ width: '100%', flex: 0.055 }} />
+          <MySectionScore
+            score={score}
+            level={level}
+            nextLevel={nextLevel}
+            pointsMissing={pointsMissing} />
+        </ScrollView>
+      </View>
+    </Wallpaper>
+  );
+}
+//---------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------
+//--------------------------Instancia de Estados almacenados en Store--------------------------
+//---------------------------------------------------------------------------------------------
+//Retorna el 'state' almacenado en el 'store' de redux.
+//Nota >> En este caso se retorna un parte de este.
+const mapStateToProps = state => {
+  //Instancia de state
+  //IdState : State
+  //  >> State : Es el Id dado al reducer en el archivo reducers.js.
+  //      Ruta Relativa >> app\reducers\reducers.js
+  return {
+    user: state.user,
+  }
+}
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Conexion >> Redux--------------------------------------
+//---------------------------------------------------------------------------------------------
+//connect(mapStateToProps,actions)(NameFunctionScreen);
+//si solo se desea utilizar actions >> connect(null,actions)(NameFunctionScreen);
+export default connect(mapStateToProps)(AchievementsScreen);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------
+//-----------------------------------Pantalla >> Registro--------------------------------------
+//---------------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+//-------------------------Componentes y dependencias React-Native-----------------------------
+import React, { useEffect, useLayoutEffect, useState } from 'react';
+import { View, Dimensions, Image, StatusBar } from 'react-native';
+//----------------------------------Librerias Adicionales--------------------------------------
+import * as Animatable from 'react-native-animatable';
+import AsyncStorage from '@react-native-community/async-storage';
+import { useTranslation } from 'react-i18next';
+//------------------------------------------Redux----------------------------------------------
+import { connect } from 'react-redux';
+import { AddUser, ErrorUser } from '../redux/actions/actions';
+//------------------------------------Recursos Graficos----------------------------------------
+import LogoCompany from '../assets/logo-croplife.jpg';
+//-----------------------------------------Data------------------------------------------------
+import { keyAsync } from '@data/data';
+//---------------------------------------------------------------------------------------------
+//---------------------------Declaracion >> Constantes Globales--------------------------------
+//---------------------------------------------------------------------------------------------
+const { width, height } = Dimensions.get('screen');
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Instancia de App---------------------------------------
+//---------------------------------------------------------------------------------------------
+const SplashScreen = (props) => {
+  //-------------------------------------------------------------------------------------------
+  //----------------------------Declaracion >> Objeto de traduccion----------------------------
+  //-------------------------------------------------------------------------------------------
+  const { i18n } = useTranslation();//Objeto de traduccion
+  const { navigation } = props;
+  //-------------------------------------------------------------------------------------------
+  //-------------------------------Declaracion >> Funciones------------------------------------
+  //-------------------------------------------------------------------------------------------
+  //--------------------------------Funcion >> Get data User-----------------------------------
+  //Descripcion : Se encarga de verificar la existencia y obtener los datos de usuario
+  //              almacenados en cache.
+  const getDataUser = async ({ key }) => {
+    try {
+      let responseData = await AsyncStorage.getItem(key);
+      if (responseData !== null) {
+        let dataJSON = JSON.parse(responseData);
+        console.log(dataJSON);
+        props.AddUser(dataJSON);
+        navigation.navigate('Home');
+      } else navigation.navigate('Login');
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  //-------------------------------------------------------------------------------------------
+  //--------------------------------Declaracion de Effects-------------------------------------
+  //-------------------------------------------------------------------------------------------
+  //----------------------------------Effect >> Get Data---------------------------------------
+  useEffect(() => {
+    //LanguageSettings({ key: keyAsync.languaje });
+    //setTimeout(() => { navigation.navigate('Home', { screen: 'Main' }); }, 5000);
+  }, []);
+  //----------------------------------Effect >> Get Data---------------------------------------
+  useEffect(() => {
+    //SaveData();
+    getDataUser({ key: keyAsync.user });
+  }, [])
+  //-------------------------------------------------------------------------------------------
+  //--------------------------------Diseño de cuerpo de App------------------------------------
+  //-------------------------------------------------------------------------------------------
+  return (
+    <Animatable.View
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+      animation="pulse"
+      iterationCount={'infinite'}
+      duration={1000}>
+      <StatusBar translucent barStyle='dark-content' backgroundColor='transparent' />
+      <Image
+        resizeMode="contain"
+        style={{ width: width * 0.5, height: width * 0.5, resizeMode: 'contain' }}
+        source={LogoCompany} />
+    </Animatable.View>
+  );
+}
+//---------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Instancia de Actions-----------------------------------
+//---------------------------------------------------------------------------------------------
+//Retorna el 'state' almacenado en el 'store' de redux.
+//Nota >> En este caso se retorna un parte de este.
+const mapDispatchToProps = dispatch => {
+  return {
+    AddUser: (data) => dispatch(AddUser(data)),
+    ErrorUser: () => dispatch(ErrorUser()),
+  }
+}
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Conexion >> Redux--------------------------------------
+//---------------------------------------------------------------------------------------------
+//connect(mapStateToProps,actions)(NameFunctionScreen);
+//si solo se desea utilizar actions >> connect(null,actions)(NameFunctionScreen);
+export default connect(null, mapDispatchToProps)(SplashScreen);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{/*----------------------Caracteristica >> Language-------------------------*/}
+                {
+                    language !== '' &&
+                    <MyPicker
+                        styleCtnPicker={[ProfileEditStyles.ctnPicker]}
+                        pickerCheck={true}
+                        iconName={'earth'}
+                        iconSize={moderateScale(20)}
+                        color={colors.Blue}
+                        titlePicker={'Lista de lenguajes'}
+                        placeHolderPicker={language}
+                        data={languajeSelect}
+                        onChange={(itemValue) => setLanguage(itemValue)}
+                        bgSection={colors.Blue}
+                        colorSection={colors.White} />
+                }
+                {/*----------------------Caracteristica >> Area-----------------------------*/}
+                {
+                    area !== '' &&
+                    <MyPicker
+                        styleCtnPicker={[ProfileEditStyles.ctnPicker]}
+                        pickerCheck={true}
+                        iconName={'account-hard-hat'}
+                        iconSize={moderateScale(20)}
+                        color={colors.Blue}
+                        titlePicker={'Sector de Trabajo '}
+                        placeHolderPicker={area}
+                        data={dataWorkSector}
+                        onChange={(itemValue) => setArea(itemValue)}
+                        bgSection={colors.Blue}
+                        colorSection={colors.White} />
+                }
+                {/*----------------------Caracteristica >> Company--------------------------*/}
+                <MyTextInput
+                    styleCtnInput={[ProfileEditStyles.ctnTextInput]}
+                    iconName={'office-building'}
+                    iconSize={moderateScale(20)}
+                    iconColor={colors.Blue}
+                    inputColor={colors.Blue}
+                    inputPlaceHolder={t('formRegister:company')}
+                    inputPlaceHolderColor={colors.Blue}
+                    inputKeyboard={'default'}
+                    inputSecurity={false}
+                    inputOnChangeText={(data) => setCompany(data)}
+                    onFocus={() => console.log('lastname')}
+                    inputValue={company}
+                    inputEditable={true}
+                    inputCheck={true}
+                    button={false} />
+                {/*----------------------Caracteristica >> Job------------------------------*/}
+                <MyTextInput
+                    styleCtnInput={[ProfileEditStyles.ctnTextInput]}
+                    iconName={'account-tie-outline'}
+                    iconSize={moderateScale(20)}
+                    iconColor={colors.Blue}
+                    inputColor={colors.Blue}
+                    inputPlaceHolder={t('formRegister:job')}
+                    inputPlaceHolderColor={colors.Blue}
+                    inputKeyboard={'default'}
+                    inputSecurity={false}
+                    inputOnChangeText={(data) => setJob(data)}
+                    onFocus={() => console.log('lastname')}
+                    inputValue={job}
+                    inputEditable={true}
+                    inputCheck={true}
+                    button={false} />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------
+//-----------------------------------Pantalla >> Cursos----------------------------------------
+//---------------------------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+//-------------------------Componentes y dependencias React-Native-----------------------------
+import React, { useRef, useState, useEffect } from 'react';
+import { Animated, Text, View, ScrollView } from 'react-native';
+//-----------------------------------Librerias Adicionales-------------------------------------
+import { useTranslation } from 'react-i18next';
+import { FlingGestureHandler, Directions, State } from 'react-native-gesture-handler';
+//----------------------------------------Componentes------------------------------------------
+import Wallpaper from '../components/Wallpaper';
+import MyDrawMenuButton from '../components/MyDrawMenuButton';
+import MyCardCourses from '../components/MyCardCourses';
+import MyCardFooter from '../components/MyCardFooter';
+import MyViewCourses from '../components/MyViewCourses';
+//------------------------------------------Redux----------------------------------------------
+import { connect } from 'react-redux';
+//-------------------------------------------Estilos-------------------------------------------
+import { CoursesStyles } from '../styles/styles';
+//---------------------------------------Recursos Graficos-------------------------------------
+//-----------------------------------Logos >> Cursos Croplife----------------------------------
+import LogoGestionRiesgo from '../assets/LogoGestionRiesgo.png';
+import LogoPolinizadores from '../assets/LogoPolinizadores.png';
+import LogoCamasBiologicas from '../assets/LogoCamasBiologicas.png';
+import LogoCicloVida from '../assets/LogoCicloVida.png';
+import LogoFAO from '../assets/LogoFAO.png';
+import LogoBiotecnologia from '../assets/LogoBiotecnologia.png';
+import LogoMOA from '../assets/LogoMOA.png';
+//-----------------------------------Logos >> Footer-------------------------------------------
+import LogoFooterCertificado from '../assets/LogoFooterCertificado.png';
+import LogoFooterRitmo from '../assets/LogoFooterRitmo.png';
+import LogoFooterRecursos from '../assets/LogoFooterRecursos.png';
+import LogoFooterEtica from '../assets/LogoFooterEtica.png';
+import LogoFooterProfesores from '../assets/LogoFooterProfesores.png';
+//------------------------------------Constantes Globales--------------------------------------
+const URL_CURSOS = 'https://cursos.croplifela.org/';
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Instancia de App---------------------------------------
+//---------------------------------------------------------------------------------------------
+const CoursesScreen = props => {
+    const { navigation } = props;
+    //-----------------------------------------------------------------------------------------
+    //----------------------------Declaracion >> Objeto de traduccion--------------------------
+    //-----------------------------------------------------------------------------------------
+    const { t, i18n } = useTranslation();//Objeto de traduccion
+    //----------------------------Declaracion  >> Constantes locales---------------------------
+    const COURSES = [
+        {
+            //Parametros >> Boton Curso
+            id: '1',
+            label: t('gestionRiesgo:name'),
+            logo: LogoGestionRiesgo,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/GESTION_RIESGO.jpg',
+            modules: '3',
+            language: t('language:espanol') + ' / ' + t('language:ingles') + ' / ' + t('language:portugues'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('gestionRiesgo:title'),
+            titleDefault: 'Gestión del Riesgo',//Label Analitics
+            body: t('gestionRiesgo:body'),
+            points: t('gestionRiesgo:points'),
+            modulo: true,
+            modulos: [
+                { id: '1', label: t('gestionRiesgo:modulo_0') },
+                { id: '2', label: t('gestionRiesgo:modulo_1') },
+                { id: '3', label: t('gestionRiesgo:modulo_2') }
+            ],
+            url: {
+                'en': URL_CURSOS + 'en/my-courses?view=cursoiniciar&layout=intro&curso=16&ptusrid=',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=14&ptusrid=',
+                'pt': URL_CURSOS + 'pt/meu-curso?view=cursoiniciar&layout=intro&curso=15&ptusrid=',
+            },
+            idCourse: {
+                'en': '16',
+                'es': '14',
+                'pt': '15',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '2',
+            label: t('polinizadores:name'),
+            logo: LogoPolinizadores,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/POLINIZADORES.jpg',
+            modules: '3',
+            language: t('language:espanol') + ' / ' + t('language:ingles') + ' / ' + t('language:portugues'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('polinizadores:title'),
+            titleDefault: 'Polinizadores',//Label Analitics
+            body: t('polinizadores:body'),
+            points: t('polinizadores:points'),
+            modulo: true,
+            modulos: [
+                { id: '1', label: t('polinizadores:modulo_0') },
+                { id: '2', label: t('polinizadores:modulo_1') },
+                { id: '3', label: t('polinizadores:modulo_2') }
+            ],
+            url: {
+                'en': URL_CURSOS + 'en/my-courses?view=cursoiniciar&layout=intro&curso=11&ptusrid=',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=8&ptusrid=',
+                'pt': URL_CURSOS + 'pt/meu-curso?view=cursoiniciar&layout=intro&curso=10&ptusrid=',
+            },
+            idCourse: {
+                'en': '11',
+                'es': '8',
+                'pt': '10',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '3',
+            label: t('camasBiologicas:name'),
+            logo: LogoCamasBiologicas,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/CAMAS_BIOLOGICAS.jpg',
+            modules: '6',
+            language: t('language:espanol') + ' / ' + t('language:ingles') + ' / ' + t('language:portugues'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('camasBiologicas:title'),
+            titleDefault: 'Camas Biologicas',//Label Analitics
+            body: t('camasBiologicas:body'),
+            points: t('camasBiologicas:points'),
+            modulo: false,
+            modulos: [
+                { id: '1', label: t('camasBiologicas:capitulo_0') },
+                { id: '2', label: t('camasBiologicas:capitulo_1') },
+                { id: '3', label: t('camasBiologicas:capitulo_2') },
+                { id: '4', label: t('camasBiologicas:capitulo_3') },
+                { id: '5', label: t('camasBiologicas:capitulo_4') },
+                { id: '6', label: t('camasBiologicas:capitulo_5') }
+            ],
+            url: {
+                'en': URL_CURSOS + 'en/my-courses?view=cursoiniciar&layout=intro&curso=13&ptusrid=',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=4&ptusrid=',
+                'pt': URL_CURSOS + 'pt/meu-curso?view=cursoiniciar&layout=intro&curso=5&ptusrid=',
+            },
+            idCourse: {
+                'en': '13',
+                'es': '4',
+                'pt': '5',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '4',
+            label: t('cicloVida:name'),
+            logo: LogoCicloVida,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/CICLO_VIDA.jpg',
+            modules: '8',
+            language: t('language:espanol') + ' / ' + t('language:ingles') + ' / ' + t('language:portugues'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('cicloVida:title'),
+            titleDefault: 'Ciclo de Vida',//Label Analitics
+            body: t('cicloVida:body'),
+            points: t('cicloVida:points'),
+            modulo: false,
+            modulos: [
+                { id: '1', label: t('cicloVida:capitulo_0') },
+                { id: '2', label: t('cicloVida:capitulo_1') },
+                { id: '3', label: t('cicloVida:capitulo_2') },
+                { id: '4', label: t('cicloVida:capitulo_3') },
+                { id: '5', label: t('cicloVida:capitulo_4') },
+                { id: '6', label: t('cicloVida:capitulo_5') },
+                { id: '7', label: t('cicloVida:capitulo_6') },
+                { id: '8', label: t('cicloVida:capitulo_7') }
+            ],
+            url: {
+                'en': URL_CURSOS + 'en/my-courses?view=cursoiniciar&layout=intro&curso=12&ptusrid=',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=2&ptusrid=',
+                'pt': URL_CURSOS + 'pt/meu-curso?view=cursoiniciar&layout=intro&curso=6&ptusrid=',
+            },
+            idCourse: {
+                'en': '12',
+                'es': '2',
+                'pt': '6',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '5',
+            label: t('codigoFAO:name'),
+            logo: LogoFAO,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/FAO.jpg',
+            modules: '4',
+            language: t('language:espanol') + ' / ' + t('language:portugues'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('codigoFAO:title'),
+            titleDefault: 'Código Fao',//Label Analitics
+            body: t('codigoFAO:body'),
+            points: t('codigoFAO:points'),
+            modulo: true,
+            modulos: [
+                { id: '1', label: t('codigoFAO:modulo_0') },
+                { id: '2', label: t('codigoFAO:modulo_1') },
+                { id: '3', label: t('codigoFAO:modulo_2') },
+                { id: '4', label: t('codigoFAO:modulo_3') }
+            ],
+            url: {
+                'en': '',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=1&ptusrid=',
+                'pt': URL_CURSOS + 'pt/meu-curso?view=cursoiniciar&layout=intro&curso=7&ptusrid=',
+            },
+            idCourse: {
+                'en': '',
+                'es': '1',
+                'pt': '7',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '6',
+            label: t('biotecnologia:name'),
+            logo: LogoBiotecnologia,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/BIOTECNOLOGIA.jpg',
+            modules: '4',
+            language: t('language:espanol'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('biotecnologia:title'),
+            titleDefault: 'Biotecnología',//Label Analitics
+            body: t('biotecnologia:body'),
+            points: t('biotecnologia:points'),
+            modulo: true,
+            modulos: [
+                { id: '1', label: t('biotecnologia:modulo_0') },
+                { id: '2', label: t('biotecnologia:modulo_1') },
+                { id: '3', label: t('biotecnologia:modulo_2') },
+                { id: '4', label: t('biotecnologia:modulo_3') }
+            ],
+            url: {
+                'en': '',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=9&ptusrid=',
+                'pt': '',
+            },
+            idCourse: {
+                'en': '',
+                'es': '9',
+                'pt': '',
+            }
+        },
+        {
+            //Parametros >> Boton Curso
+            id: '7',
+            label: t('moa:name'),
+            logo: LogoMOA,
+            urlLogo: 'https://app.cursos.croplifela.org/assets/slideCursosApp/MOA.jpg',
+            modules: '3',
+            language: t('language:espanol'),
+            //Parametros >> Tarjeta Presentacion
+            title: t('moa:title'),
+            titleDefault: 'MoA',//Label Analitics
+            body: t('moa:body'),
+            points: t('moa:points'),
+            modulo: true,
+            modulos: [
+                { id: '1', label: t('moa:modulo_0') },
+                { id: '2', label: t('moa:modulo_1') },
+                { id: '3', label: t('moa:modulo_2') }
+            ],
+            url: {
+                'en': '',
+                'es': URL_CURSOS + 'es/mis-cursos?view=cursoiniciar&layout=intro&curso=17&ptusrid=',
+                'pt': '',
+            },
+            idCourse: {
+                'en': '',
+                'es': '17',
+                'pt': '',
+            }
+        }
+    ];//Tabla >> Cursos Croplife
+    const FOOTER = [
+        {
+            id: '1',
+            label: t('footer:title_0'),
+            descripcion: t('footer:body_0'),
+            logo: LogoFooterCertificado
+
+        },
+        {
+            id: '2',
+            label: t('footer:title_1'),
+            descripcion: t('footer:body_1'),
+            logo: LogoFooterRitmo
+        },
+        {
+            id: '3',
+            label: t('footer:title_2'),
+            descripcion: t('footer:body_2'),
+            logo: LogoFooterRecursos
+        },
+        {
+            id: '4',
+            label: t('footer:title_3'),
+            descripcion: t('footer:body_3'),
+            logo: LogoFooterEtica
+        },
+        {
+            id: '5',
+            label: t('footer:title_4'),
+            descripcion: t('footer:body_4'),
+            logo: LogoFooterProfesores
+        },
+    ];//Tabla >> Footer
+    //-------------------------------------------------------------------------------------------
+    //-----------------------Declaracion de variables de animacion-------------------------------
+    //-------------------------------------------------------------------------------------------
+    const opacity = useRef(new Animated.Value(0));//Estado inicial : Opacidad de Vista
+    //--------------------------------Referencia >> Animacion------------------------------------
+    //---------------------Animacion >> Desplazamiento en Y de cuadrado--------------------------
+    const Opacity_Show = useRef(
+        Animated.timing(opacity.current, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+        })).current;
+    const Opacity_Hide = useRef(
+        Animated.timing(opacity.current, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+        })).current;
+    //-------------------------------Constantes de interpolacion---------------------------------
+    const scale = opacity.current.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.01, 1],
+        extrapolate: 'clamp'
+    });
+    //-------------------------------------------------------------------------------------------
+    //-------------------------------Declaracion >> Componentes----------------------------------
+    //-------------------------------------------------------------------------------------------
+    //----------------------------------Componente >> CoursesCompany-----------------------------
+    //Descripcion : Permite visualizar los botones de acceso a los cursos de la compañia.
+    const CoursesCompany = (props) => {
+        const { courses, footer } = props;
+        return (
+            <View style={[CoursesStyles.ctnCourses]}>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={[CoursesStyles.scrollCourse]}>
+                    {/*courses.map(data =>
+                        <MyCardCourses
+                            {...props}
+                            key={data.id}
+                            data={data}
+                            navigation={navigation} />
+                    )*/}
+
+                    <Text style={[CoursesStyles.footerTitle]}>
+                        {t('courses:title_1')}
+                    </Text>
+                    {footer.map(data =>
+                        <MyCardFooter
+                            key={data.id}
+                            data={data} />
+                    )}
+                </ScrollView>
+            </View>
+        );
+    }
+    //-----------------------------------------------------------------------------------------
+    //-------------------------------Declaracion >> Effects------------------------------------
+    //-----------------------------------------------------------------------------------------
+    //------------------------------Effect >> Show/Hide Modal----------------------------------
+    useEffect(() => {
+        let showView = props.viewCourse.data.show;
+        showView ? Opacity_Show.start() : Opacity_Hide.start();
+    }, [props.viewCourse.data.show]);
+    //-----------------------------------------------------------------------------------------
+    //--------------------------------Diseño de cuerpo de App----------------------------------
+    //-----------------------------------------------------------------------------------------
+    return (
+        <FlingGestureHandler
+            key='left'
+            direction={Directions.LEFT}
+            onHandlerStateChange={(ev) => {
+                if (ev.nativeEvent.state === State.END) {
+                    if (index === data.length - 1) {
+                        return;
+                    }
+                    setActiveIndex(index + 1);
+                }
+            }}>
+            <FlingGestureHandler
+                key='right'
+                direction={Directions.RIGHT}
+                onHandlerStateChange={(ev) => {
+                    if (ev.nativeEvent.state === State.END) {
+                        if (index === 0) {
+                            return;
+                        }
+                        setActiveIndex(index - 1);
+                    }
+                }}>
+                <Wallpaper>
+                    <MyDrawMenuButton
+                        title={t('buttonsMenu:cursos')}
+                        navigation={navigation} />
+                    <CoursesCompany
+                        {...props}
+                        courses={COURSES}
+                        footer={FOOTER} />
+                    <MyViewCourses
+                        {...props}
+                        opacity={opacity.current}
+                        scale={scale} />
+                </Wallpaper>
+            </FlingGestureHandler>
+        </FlingGestureHandler>
+    );
+};
+//---------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------
+//--------------------------Instancia de Estados almacenados en Store--------------------------
+//---------------------------------------------------------------------------------------------
+//Retorna el 'state' almacenado en el 'store' de redux.
+//Nota >> En este caso se retorna un parte de este.
+const mapStateToProps = state => {
+    //Instancia de state
+    //IdState : State
+    //  >> State : Es el Id dado al reducer en el archivo reducers.js.
+    //      Ruta Relativa >> app\reducers\reducers.js
+    return {
+        viewCourse: state.viewCourse,
+    }
+}
+//---------------------------------------------------------------------------------------------
+//--------------------------------------Conexion >> Redux--------------------------------------
+//---------------------------------------------------------------------------------------------
+//connect(mapStateToProps,actions)(NameFunctionScreen);
+//si solo se desea utilizar actions >> connect(null,actions)(NameFunctionScreen);
+export default connect(mapStateToProps)(CoursesScreen);
+

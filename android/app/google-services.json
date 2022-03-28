@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "192712509548",
+    "project_id": "appmovilcroplife",
+    "storage_bucket": "appmovilcroplife.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:192712509548:android:2be0c74d62a7c932153049",
+        "android_client_info": {
+          "package_name": "com.cursos_croplifela"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "192712509548-nfovs4sj3363t9pqv0hps81q92b850qt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cursos_croplifela",
+            "certificate_hash": "3036e6d61c194bac490a053257b6033fd7fe2fcd"
+          }
+        },
+        {
+          "client_id": "192712509548-lihulgbnsaa7aslner0v5qfjnnal2a0o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMH68G7Fk13aJ_mDGpak9n1IOPmZ4iwaM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "192712509548-lihulgbnsaa7aslner0v5qfjnnal2a0o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

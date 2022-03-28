@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Educativa CropLife</string>
+    <string name="facebook_app_id">749669785199481</string>
+    <string name="fb_login_protocol_scheme">fb749669785199481</string>
+</resources>

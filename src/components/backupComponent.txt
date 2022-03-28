@@ -1,0 +1,360 @@
+//---------------------------------------------------------------------------------------------
+//----------------------------Archivo de componente: MyCustomDrawer----------------------------
+//---------------------------------------------------------------------------------------------
+//Nota : Este componente permite renderizar los taps del menu de cajon animado implementando.
+
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+import React from 'react';
+import { Text, ImageBackground, StyleSheet, SafeAreaView, Dimensions } from 'react-native';
+//-----------------------------------Librerias Adicionales-------------------------------------
+import Icon from 'react-native-vector-icons/FontAwesome5';
+//---------------------------------------Menu de Cajon-----------------------------------------
+import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
+//-----------------------------------------Animated--------------------------------------------
+import Animated from 'react-native-reanimated';
+const { interpolate, Extrapolate } = Animated;
+//------------------------------------------Estilos--------------------------------------------
+import { colors } from '../styles/colors';
+import { moderateScale } from '../styles/scale';
+//-------------------------------------Recursos Graficos---------------------------------------
+import Perfil from '../assets/Perfil_2.jpg';
+//-----------------------------Declaracion >> Contanstes Globales------------------------------
+const { width, height } = Dimensions.get('window');
+const TABLE_ICON = {
+    'Main': 'home',
+    'Courses': 'pen',
+    'Videos': 'play',
+    'Resources': 'file-download',
+    'Test': 'brain',
+    'Events': 'calendar-alt',
+    'Profile': 'user',
+    'Notifications': 'envelope',
+    'Help': 'info',
+    'LogOut': 'sign-out-alt'
+};//Tabla de iconos
+//---------------------------------------------------------------------------------------------
+//-----------------------------------Instancia de Componente-----------------------------------
+//---------------------------------------------------------------------------------------------
+export default function MyCustomDrawer(props) {
+    //----------------------------Declaracion >> Constantes Locales----------------------------
+    const { state, progress, navigation } = props;//Recepcion >> Propiedades de navegador
+    const { index, routes } = state;//Recepcion >> Parametros de navegador
+    //------------------------------Instancia >> Constantes de Animacion-----------------------
+    const opacity = interpolate(progress, {
+        inputRange: [0, 0.5, 1],
+        outputRange: [0, 0.1, 1],
+        extrapolate: Extrapolate.CLAMP
+    });
+    //-----------------------------------------------------------------------------------------
+    //-------------------------------Declaracion >> Componentes--------------------------------
+    //-----------------------------------------------------------------------------------------
+    //--------------------------------Componente >> AvatarPerfil-------------------------------
+    //Descripcion : Renderiza la imagen de perfil del usuario del menu de taps.
+    const AvatarPerfil = ({ avatar }) => {
+        return (
+            <SafeAreaView style={styles.imageContainer} edges={['top']}>
+                <ImageBackground
+                    source={avatar}
+                    style={styles.drawerImage}
+                    imageStyle={styles.imageStyle}
+                    resizeMode='cover' />
+            </SafeAreaView>
+        );
+    }
+    //--------------------------------Componente >> TapDrawerItem------------------------------
+    //Descripcion : Renderiza los items del menu de navegacion de cajon.
+    const LabelDrawerItem = ({ name, focused }) => {
+        const styleFocus = focused ? styles.activeText : styles.inactiveText;
+        return (
+            <Text style={[styleFocus, { fontSize: moderateScale(16) }]}>
+                <Icon
+                    name={TABLE_ICON[name]}
+                    size={moderateScale(20)}
+                    color={focused ? colors.Blue : colors.White} />
+                {'  '}{name}
+            </Text>
+        );
+    }
+    const ScreenTap = ({ screen }) => {
+        if (screen === 'LogOut') navigation.navigate('LogOut');
+        else navigation.navigate(`${screen}`);
+    }
+    //-----------------------------------------------------------------------------------------
+    //----------------------------Diseño de cuerpo de Componente-------------------------------
+    //-----------------------------------------------------------------------------------------
+    return (
+        <Animated.View style={[styles.container, { opacity: opacity }]}>
+            {/*-----------------------Seccion >> Foto de Perfil-----------------------------*/}
+            <AvatarPerfil avatar={Perfil} />
+            {/*-----------------------Seccion >> Drawer Items-------------------------------*/}
+            <DrawerContentScrollView
+                {...props}
+                contentContainerStyle={styles.drawerContentContainerStyle}>
+                {routes.map((route, position) => {
+                    const isFocused = (index === position);
+                    return (
+                        <DrawerItem
+                            key={route.key}
+                            label={({ focused }) => {
+                                return (
+                                    <LabelDrawerItem
+                                        name={route.name}
+                                        focused={focused} />
+                                )
+                            }}
+                            style={isFocused ? styles.activeContainer : styles.inActiveContainer}
+                            onPress={() => ScreenTap({ screen: route.name })}
+                            focused={isFocused}
+                            activeBackgroundColor='transparent' />
+                    )
+                })}
+                <DrawerItem
+                    key={'11'}
+                    label={({ focused }) => {
+                        return (
+                            <LabelDrawerItem
+                                name={'LogOut'}
+                                focused={focused} />
+                        )
+                    }}
+                    style={styles.inActiveContainer}
+                    onPress={() => ScreenTap({ screen: 'LogOut' })}
+                    activeBackgroundColor='transparent' />
+            </DrawerContentScrollView>
+        </Animated.View>
+    )
+};
+//-----------------------------------------------------------------------------------
+//-------------------------------Estilos de Componente-------------------------------
+//-----------------------------------------------------------------------------------
+const styles = StyleSheet.create({
+    container: {
+        flex: 1
+    },
+
+    drawerContentContainerStyle: {
+        paddingTop: 0
+    },
+
+    imageContainer: {
+        alignItems: 'center',
+        borderRadius: 20,
+        marginTop: 100,
+        marginBottom: 20
+    },
+
+    drawerImage: {
+        width: width * 0.25,
+        height: width * 0.25
+    },
+
+    imageStyle: {
+        borderRadius: 20
+    },
+
+    imageGradient: {
+        flex: 1,
+        borderRadius: 10
+    },
+
+    activeContainer: {
+        borderLeftWidth: 5,
+        borderLeftColor: colors.Blue,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        borderRadius: 5,
+        marginTop: 0
+    },
+
+    activeText: {
+        fontWeight: 'bold',
+        color: colors.Blue,
+        backgroundColor: 'transparent'
+    },
+
+    inActiveContainer: {
+        borderLeftWidth: 5,
+        borderLeftColor: 'transparent',
+        backgroundColor: 'transparent',
+        borderRadius: 5,
+        marginTop: 0
+    },
+
+    inactiveText: {
+        fontWeight: 'bold',
+        color: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: 'transparent'
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------
+//----------------------------Archivo de componente: MyCustomScreen----------------------------
+//---------------------------------------------------------------------------------------------
+//Nota : Este componente permite renderizar los taps del menu de cajon animado implementando.
+
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+import React from 'react';
+import { StyleSheet, Dimensions } from 'react-native';
+//-----------------------------------Librerias Adicionales-------------------------------------
+import Animated from 'react-native-reanimated';
+//--------------------------------Objeto >> Navegador de Pila----------------------------------
+const Stack = createStackNavigator();
+import { createStackNavigator } from '@react-navigation/stack';
+const { width, height } = Dimensions.get('window');
+//---------------------------------------------------------------------------------------------
+//-----------------------------------Instancia de Componente-----------------------------------
+//---------------------------------------------------------------------------------------------
+export default function MyCustomScreen(props) {
+    //----------------------------Declaracion >> Constantes Locales----------------------------
+    const { item, style, navigation } = props;//Recepcion >> Propiedades de navegador
+    const Component = item.component;//Deckaracion de componente
+    //-----------------------------------------------------------------------------------------
+    //----------------------------Diseño de cuerpo de Componente-------------------------------
+    //-----------------------------------------------------------------------------------------
+    return (
+        <Animated.View style={[styles.animatedView, style]}>
+            <Stack.Navigator>
+                <Stack.Screen
+                    name={item.name}
+                    component={Component}
+                    options={{ headerShown: false }} />
+            </Stack.Navigator>
+        </Animated.View>
+    )
+};
+//-----------------------------------------------------------------------------------
+//-------------------------------Estilos de Componente-------------------------------
+//-----------------------------------------------------------------------------------
+const styles = StyleSheet.create({
+    //Estilo >> Screen de tap
+    animatedView: {
+        width: '100%',
+        height: '100%',
+        flexDirection: 'column',
+        overflow: 'hidden'
+    },
+});
+
+
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------------------------
+//--------------------------------Navegador de CAJON anidado-----------------------------------
+//---------------------------------------------------------------------------------------------
+//Descripcion:  Navegador de Cajon anidado. Navegador hijo, contiene las pantallas de
+//              navegacion del usuario. Estas conforman el HOME, y es lo que ve el usuario
+//              posterior a su logueo. Tenga encuenta que esta declaracion corresponde a un menu
+//              de cajon animado, por lo cual cada pantalla declarada se realiza dentro de un
+//              navegador de pila interno, por lo cual poseen un nivel de anidamiento (2).
+//---------------------------------------------------------------------------------------------
+//---------------------------Importar dependencias y componentes-------------------------------
+//---------------------------------------------------------------------------------------------
+import React from 'react';
+import { ImageBackground, StatusBar, View } from 'react-native';
+//-----------------------------------------Animated--------------------------------------------
+import Animated from 'react-native-reanimated';
+const { interpolate, Extrapolate } = Animated;
+//------------------------------------------Estilos--------------------------------------------
+import { HomeNavigator } from '../styles/styles';
+//-------------------------------------Recursos Graficos---------------------------------------
+import Fondo from '../assets/Fondo_4.jpg';
+//---------------------------------------Menu >> Cajon-----------------------------------------
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import MyCustomDrawer from '../components/MyCustomDrawer';
+import MyCustomScreen from '../components/MyCustomScreen';
+//---------------------------------------Pantallas de App--------------------------------------
+//----------------------Pantallas de navegador de pestañas (Anidamiento 2)---------------------
+import HomeScreen from '../screens/HomeScreen';
+import CoursesScreen from '../screens/CoursesScreen';
+import VideosScreen from '../screens/VideosScreen';
+import ResourcesScreen from '../screens/ResourcesScreen';
+import TestScreen from '../screens/TestScreen';
+import EventsScreen from '../screens/EventsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import HelpScreen from '../screens/HelpScreen';
+//--------------------------------Declaracion >> Constantes Globales---------------------------
+const HOME_SCREENS = [
+    { id: 1, name: 'Main', component: HomeScreen },
+    { id: 2, name: 'Courses', component: CoursesScreen },
+    { id: 3, name: 'Videos', component: VideosScreen },
+    { id: 4, name: 'Resources', component: ResourcesScreen },
+    { id: 5, name: 'Test', component: TestScreen },
+    { id: 6, name: 'Events', component: EventsScreen },
+    { id: 7, name: 'Profile', component: ProfileScreen },
+    { id: 8, name: 'Notifications', component: NotificationsScreen },
+    { id: 9, name: 'Help', component: HelpScreen },
+    //{ id: 10, name: 'CropLife'},
+    //{ id: 11, name: 'LogOut'},
+];
+//----------------------------Declaracion >> Variables Globales--------------------------------
+let screenStyle = null;//Objeto de estilo de screen de navegador
+//---------------------------------------------------------------------------------------------
+//-----------------------------Declaracion de Navegador de Cajon-------------------------------
+//---------------------------------------------------------------------------------------------
+const Drawer = createDrawerNavigator();//Objeto de cajon
+const Home = (props) => {
+    //-----------------------------------------------------------------------------------------
+    //----------------------------------Instancia >> Navegador---------------------------------
+    //-----------------------------------------------------------------------------------------
+    return (
+        <ImageBackground
+            style={HomeNavigator.backgroundImage}
+            source={Fondo}
+            resizeMode='cover' >
+            <StatusBar translucent barStyle='dark-content' backgroundColor='transparent' />
+            <View style={HomeNavigator.transparentView}>
+                <Drawer.Navigator
+                    initialRouteName="Main"
+                    drawerType='back'
+                    overlayColor='transparent'
+                    sceneContainerStyle={HomeNavigator.sceneContainerStyle}
+                    drawerStyle={HomeNavigator.drawerStyle}
+                    drawerContent={props => {
+                        const scale = interpolate(props.progress, {
+                            inputRange: [0, 1],
+                            outputRange: [1, 0.85],
+                            extrapolate: Extrapolate.CLAMP
+                        });
+                        const borderRadius = interpolate(props.progress, {
+                            inputRange: [0, 1],
+                            outputRange: [0, 20],
+                            extrapolate: Extrapolate.CLAMP
+                        });
+                        //Objeto de estilo >> Animaciones de Screen
+                        screenStyle = { transform: [{ scaleY: scale }], borderRadius };
+                        return <MyCustomDrawer {...props} />;
+                    }} >
+                    {HOME_SCREENS.map(screen => {
+                        return (
+                            <Drawer.Screen key={screen.id} name={screen.name}>
+                                {props => <MyCustomScreen item={screen} {...props} style={{ ...screenStyle }} />}
+                            </Drawer.Screen>
+                        )
+                    })}
+                </Drawer.Navigator>
+            </View>
+        </ImageBackground>
+    )
+};
+export default Home;
